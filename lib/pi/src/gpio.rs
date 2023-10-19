@@ -1,8 +1,8 @@
 use core::marker::PhantomData;
 
-use crate::common::{IO_BASE, states};
+use crate::common::{states, IO_BASE};
 use volatile::prelude::*;
-use volatile::{Volatile, WriteVolatile, ReadVolatile, Reserved};
+use volatile::{ReadVolatile, Reserved, Volatile, WriteVolatile};
 
 /// An alternative GPIO function.
 #[repr(u8)]
@@ -14,7 +14,7 @@ pub enum Function {
     Alt2 = 0b110,
     Alt3 = 0b111,
     Alt4 = 0b011,
-    Alt5 = 0b010
+    Alt5 = 0b010,
 }
 
 #[repr(C)]
@@ -47,7 +47,6 @@ struct Registers {
 }
 
 /// Possible states for a GPIO pin.
-#[allow(unused_doc_comments)]
 states! {
     Uninitialized, Input, Output, Alt
 }
@@ -62,7 +61,7 @@ states! {
 pub struct Gpio<State> {
     pin: u8,
     registers: &'static mut Registers,
-    _state: PhantomData<State>
+    _state: PhantomData<State>,
 }
 
 /// The base address of the `GPIO` registers.
@@ -77,7 +76,7 @@ impl<T> Gpio<T> {
         Gpio {
             pin: self.pin,
             registers: self.registers,
-            _state: PhantomData
+            _state: PhantomData,
         }
     }
 }
@@ -96,14 +95,25 @@ impl Gpio<Uninitialized> {
         Gpio {
             registers: unsafe { &mut *(GPIO_BASE as *mut Registers) },
             pin: pin,
-            _state: PhantomData
+            _state: PhantomData,
         }
     }
 
     /// Enables the alternative function `function` for `self`. Consumes self
     /// and returns a `Gpio` structure in the `Alt` state.
     pub fn into_alt(self, function: Function) -> Gpio<Alt> {
-        unimplemented!()
+        // 10 pins per GPFSELn
+        let fsel_index = (self.pin / 10) as usize;
+        // 10 pins of width 3
+        let pin_offset = (self.pin % 10) as usize * 3;
+
+        // clear existing function
+        self.registers.FSEL[fsel_index].and_mask(!(0b111 << pin_offset));
+
+        // set new function
+        self.registers.FSEL[fsel_index].or_mask((function as u32) << pin_offset);
+
+        self.transition()
     }
 
     /// Sets this pin to be an _output_ pin. Consumes self and returns a `Gpio`
@@ -122,12 +132,20 @@ impl Gpio<Uninitialized> {
 impl Gpio<Output> {
     /// Sets (turns on) the pin.
     pub fn set(&mut self) {
-        unimplemented!()
+        let index = (self.pin / 32) as usize;
+        let bit_sel = self.pin as usize - index * 32;
+
+        self.registers.SET[index] // bank index
+            .write(1 << bit_sel); // set bit of pin in bank
     }
 
     /// Clears (turns off) the pin.
     pub fn clear(&mut self) {
-        unimplemented!()
+        let index = (self.pin / 32) as usize;
+        let bit_sel = self.pin as usize - index * 32;
+
+        self.registers.CLR[index] // bank index
+            .write(1 << bit_sel); // set bit of pin in bank
     }
 }
 
@@ -135,6 +153,9 @@ impl Gpio<Input> {
     /// Reads the pin's value. Returns `true` if the level is high and `false`
     /// if the level is low.
     pub fn level(&mut self) -> bool {
-        unimplemented!()
+        let index = (self.pin / 32) as usize;
+        let bit_sel = self.pin as usize - index * 32;
+
+        self.registers.LEV[index].has_mask(1 << bit_sel)
     }
 }
