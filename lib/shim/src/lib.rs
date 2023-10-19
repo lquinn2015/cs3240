@@ -1,6 +1,6 @@
 #![cfg_attr(feature = "no_std", no_std)]
 #![feature(str_internals)]
-#![feature(optin_builtin_traits)]
+//#![feature(optin_builtin_traits)] #TODO this breaks on new rust
 #![feature(never_type)]
 
 #[cfg(feature = "alloc")]
