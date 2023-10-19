@@ -11,13 +11,13 @@ authors = [
 edition = "2018"
 
 [dependencies]
-acid_io = {version = "0.1.0", optional = true}
+#acid_io = {version = "0.1.0", optional = true}
 cfg-if = "0.1"
-#core_io = { version = "0.1.20210325", package = "core_io", optional = true }
+core_io = { version = "0.1.20210325", package = "core_io", optional = true }
 
 [dev-dependencies]
 hashbrown = "0.6.3"
 
 [features]
-no_std = ["acid_io"]
-alloc = ["acid_io/alloc", "acid_io/collections"]
+no_std = ["core_io"]
+alloc = ["core_io/alloc", "core_io/collections"]

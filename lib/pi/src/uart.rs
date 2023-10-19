@@ -143,8 +143,6 @@ impl MiniUart {
     }
 }
 
-// FIXME: Implement `fmt::Write` for `MiniUart`. A b'\r' byte should be written
-// before writing any b'\n' byte.
 impl fmt::Write for MiniUart {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for byte in s.bytes() {
@@ -161,19 +159,40 @@ mod uart_io {
     use super::io;
     use super::io::{Read, Write};
     use super::MiniUart;
-    use volatile::prelude::*;
+    use shim::ioerr;
 
-    // FIXME: Implement `io::Read` and `io::Write` for `MiniUart`.
-    //
     // The `io::Read::read()` implementation must respect the read timeout by
     // waiting at most that time for the _first byte_. It should not wait for
     // any additional bytes but _should_ read as many bytes as possible. If the
     // read times out, an error of kind `TimedOut` should be returned.
-    impl io::Read for MiniUart {
+    impl Read for MiniUart {
         fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            if let Err(_) = self.wait_for_byte() {}
+            if self.wait_for_byte().is_err() {
+                return ioerr!(TimedOut, "out of time");
+            }
+            let mut i = 0;
+            while self.has_byte() && i < buf.len() {
+                buf[i] = self.read_byte();
+                i += 1;
+            }
+            Ok(i)
         }
     }
     // The `io::Write::write()` method must write all of the requested bytes
     // before returning.
+    impl Write for MiniUart {
+
+        /// `write` will block if no buffer space is available
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            for b in buf.iter() {
+                self.write_byte(*b);
+            }
+            Ok(buf.len())
+        }
+        
+        /// Flush is a nop since write will block on overflow
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
 }
