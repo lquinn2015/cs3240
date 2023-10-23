@@ -13,3 +13,6 @@ rustflags = [
     "-C", "link-arg=-L.cargo",
     "-C", "link-arg=-lsd",
 ]
+
+[unstable]
+build-std = ["core", "compiler_builtins"]

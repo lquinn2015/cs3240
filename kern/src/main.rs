@@ -3,7 +3,6 @@
 #![feature(decl_macro)]
 #![feature(asm)]
 #![feature(global_asm)]
-#![feature(optin_builtin_traits)]
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
 
@@ -14,12 +13,19 @@ pub mod console;
 pub mod mutex;
 pub mod shell;
 
+use core::fmt::Write;
+
 use console::kprintln;
 
+use pi::uart::{self, MiniUart};
 // FIXME: You need to add dependencies here to
 // test your drivers (Phase 2). Add them as needed.
 
 fn kmain() -> ! {
-    // FIXME: Start the shell.
-    unimplemented!()
+    let mut io = MiniUart::new();
+    loop {
+        let b = io.read_byte();
+        io.write_byte(b);
+        io.write_str("<-");
+    }
 }
