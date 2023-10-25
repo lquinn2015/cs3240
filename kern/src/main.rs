@@ -22,10 +22,8 @@ use pi::uart::{self, MiniUart};
 // test your drivers (Phase 2). Add them as needed.
 
 fn kmain() -> ! {
-    let mut io = MiniUart::new();
-    loop {
-        let b = io.read_byte();
-        io.write_byte(b);
-        io.write_str("<-");
-    }
+	
+	let a = 5;
+    kprintln!("ADD WITTY LOGO HERE {}", a);
+	loop {}
 }

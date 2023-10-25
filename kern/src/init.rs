@@ -28,3 +28,4 @@ unsafe fn kinit() -> ! {
     zeros_bss();
     kmain();
 }
+
