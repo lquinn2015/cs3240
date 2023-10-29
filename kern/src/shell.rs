@@ -1,6 +1,6 @@
-use stack_vec::StackVec;
-
 use crate::console::{kprint, kprintln, CONSOLE};
+use shim::io::Write;
+use stack_vec::StackVec;
 
 /// Error type for `Command` parse failures.
 #[derive(Debug)]
@@ -37,12 +37,73 @@ impl<'a> Command<'a> {
 
     /// Returns this command's path. This is equivalent to the first argument.
     fn path(&self) -> &str {
-        unimplemented!()
+        self.args[0]
     }
 }
 
 /// Starts a shell using `prefix` as the prefix for each line. This function
 /// returns if the `exit` command is called.
 pub fn shell(prefix: &str) -> ! {
-    unimplemented!()
+    const BEL: u8 = 0x07; // BELL
+    const BS: u8 = 0x08; // Backspace
+    const DEL: u8 = 0x7F; // DEL
+    const NL: u8 = 0x0A; // New Line
+    const CR: u8 = 0x0D; // Carriage return
+
+    'cmd: loop {
+        let mut stack_buf = [0u8; 512];
+        let mut stack = StackVec::new(&mut stack_buf);
+        let mut cmd_buf: [&str; 64] = [""; 64];
+
+        kprint!("{}", prefix);
+
+        'arg: loop {
+            let mut console = CONSOLE.lock();
+            let input = console.read_byte();
+
+            // Ring bell on bad chars
+            if !input.is_ascii() {
+                console.write_byte(BEL);
+                continue 'arg;
+            }
+
+            match input {
+                BS | DEL => {
+                    if stack.pop().is_some() {
+                        console.write(&[BS, b' ', BS]).ok(); // backout the previous char
+                    } else {
+                        console.write_byte(BEL); // no chars to backspace
+                    }
+                }
+                NL | CR => {
+                    match Command::parse(
+                        core::str::from_utf8(stack.into_slice()).unwrap(),
+                        &mut cmd_buf,
+                    ) {
+                        Ok(_cmd) => {
+                            console.write_byte(NL);
+                            console.write_byte(CR);
+                            break 'arg; // this command should be dispatched somehow
+                        }
+                        Err(Error::Empty) => {
+                            console.write_byte(NL);
+                            console.write_byte(CR);
+                            continue 'cmd; // Bad commad new line try again
+                        }
+                        Err(Error::TooManyArgs) => {
+                            console.write_byte(NL);
+                            console.write_byte(CR);
+                            console.write_byte(BEL);
+                            continue 'cmd; // Bad commad new line try again
+                        }
+                    }
+                }
+                _ => match stack.push(input) {
+                    Ok(_) => console.write_byte(input),
+                    Err(_) => console.write_byte(BEL),
+                },
+            }
+        }
+        // comand is valid do something
+    }
 }
