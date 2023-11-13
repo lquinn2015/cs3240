@@ -50,10 +50,11 @@ pub fn shell(prefix: &str) -> ! {
     const NL: u8 = 0x0A; // New Line
     const CR: u8 = 0x0D; // Carriage return
 
-    'cmd: loop {
+    kprintln!("Starting Shell");
+
+    loop {
         let mut stack_buf = [0u8; 512];
         let mut stack = StackVec::new(&mut stack_buf);
-        let mut cmd_buf: [&str; 64] = [""; 64];
 
         kprint!("{}", prefix);
 
@@ -76,27 +77,8 @@ pub fn shell(prefix: &str) -> ! {
                     }
                 }
                 NL | CR => {
-                    match Command::parse(
-                        core::str::from_utf8(stack.into_slice()).unwrap(),
-                        &mut cmd_buf,
-                    ) {
-                        Ok(_cmd) => {
-                            console.write_byte(NL);
-                            console.write_byte(CR);
-                            break 'arg; // this command should be dispatched somehow
-                        }
-                        Err(Error::Empty) => {
-                            console.write_byte(NL);
-                            console.write_byte(CR);
-                            continue 'cmd; // Bad commad new line try again
-                        }
-                        Err(Error::TooManyArgs) => {
-                            console.write_byte(NL);
-                            console.write_byte(CR);
-                            console.write_byte(BEL);
-                            continue 'cmd; // Bad commad new line try again
-                        }
-                    }
+                    kprintln!();
+                    break 'arg;
                 }
                 _ => match stack.push(input) {
                     Ok(_) => console.write_byte(input),
@@ -105,5 +87,16 @@ pub fn shell(prefix: &str) -> ! {
             }
         }
         // comand is valid do something
+        let line_str = core::str::from_utf8(stack.as_slice()).unwrap();
+        let mut cmd_buf: [&str; 64] = [""; 64];
+        match Command::parse(line_str, &mut cmd_buf) {
+            Ok(cmd) => match cmd.path() {
+                "echo" => kprintln!("{}", &line_str[5..]),
+                "panic" => panic!("Okay I can panic"),
+                _ => kprintln!("Unknown command: {}", cmd.path()),
+            },
+            Err(Error::TooManyArgs) => kprintln!("Error: to many args"),
+            Err(Error::Empty) => {}
+        }
     }
 }

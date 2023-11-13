@@ -13,17 +13,9 @@ pub mod console;
 pub mod mutex;
 pub mod shell;
 
-use core::fmt::Write;
-
 use console::kprintln;
 
-use pi::uart::{self, MiniUart};
-// FIXME: You need to add dependencies here to
-// test your drivers (Phase 2). Add them as needed.
-
 fn kmain() -> ! {
-	
-	let a = 5;
-    kprintln!("ADD WITTY LOGO HERE {}", a);
-	loop {}
+    kprintln!("Hello to the Rach");
+    shell::shell("$ ");
 }

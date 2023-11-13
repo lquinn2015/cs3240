@@ -1,7 +1,6 @@
 use core::fmt;
 use core::time::Duration;
 
-use shim::const_assert_size;
 use shim::io;
 
 use volatile::prelude::*;
@@ -55,6 +54,14 @@ pub struct MiniUart {
     timeout: Option<Duration>,
 }
 
+#[repr(u16)]
+pub enum BaudRate {
+    Baud19200 = 1627,
+    Baud38400 = 813,
+    Baud76800 = 406,
+    Baud115200 = 270,
+}
+
 impl MiniUart {
     /// Initializes the mini UART by enabling it as an auxiliary peripheral,
     /// setting the data size to 8 bits, setting the BAUD rate to ~115200 (baud
@@ -63,7 +70,7 @@ impl MiniUart {
     ///
     /// By default, reads will never time out. To set a read timeout, use
     /// `set_read_timeout()`.
-    pub fn new() -> MiniUart {
+    pub fn new(baud: BaudRate) -> MiniUart {
         let registers = unsafe {
             // Enable the mini UART as an auxiliary device.
             (*AUX_ENABLES).or_mask(1);
@@ -74,7 +81,7 @@ impl MiniUart {
         Gpio::new(15).into_alt(Function::Alt5);
 
         // 115200 baud rate BCM2835 pg:10,19
-        registers.BAUD.write(270);
+        registers.BAUD.write(baud as u16);
 
         // set UART to 8-bit mode and clear DLAB access BCM2835 pg: 14
         registers.LCR.write(0b11);
@@ -99,16 +106,21 @@ impl MiniUart {
     /// Write the byte `byte`. This method blocks until there is space available
     /// in the output FIFO.
     pub fn write_byte(&mut self, byte: u8) {
-        while !(self.registers.LSR.has_mask(0b0010_0000)) {}
-
+        while !(self.registers.LSR.has_mask(LsrStatus::TxAvailable as u8)) {}
         self.registers.IO.write(byte);
+    }
+
+    pub fn clear(&mut self) {
+        while self.has_byte() {
+            self.read_byte();
+        }
     }
 
     /// Returns `true` if there is at least one byte ready to be read. If this
     /// method returns `true`, a subsequent call to `read_byte` is guaranteed to
     /// return immediately. This method does not block.
     pub fn has_byte(&self) -> bool {
-        self.registers.LSR.has_mask(0b1)
+        self.registers.LSR.has_mask(LsrStatus::DataReady as u8)
     }
 
     /// Blocks until there is a byte ready to read. If a read timeout is set,
@@ -127,7 +139,7 @@ impl MiniUart {
         };
         let wake = timer::current_time() + dur;
         while !self.has_byte() {
-            if let Some(dur) = self.timeout {
+            if let Some(_dur) = self.timeout {
                 if timer::current_time() > wake {
                     return Err(());
                 }
@@ -181,7 +193,6 @@ mod uart_io {
     // The `io::Write::write()` method must write all of the requested bytes
     // before returning.
     impl Write for MiniUart {
-
         /// `write` will block if no buffer space is available
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             for b in buf.iter() {
@@ -189,7 +200,7 @@ mod uart_io {
             }
             Ok(buf.len())
         }
-        
+
         /// Flush is a nop since write will block on overflow
         fn flush(&mut self) -> io::Result<()> {
             Ok(())

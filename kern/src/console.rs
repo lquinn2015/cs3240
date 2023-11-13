@@ -1,5 +1,5 @@
 use core::fmt;
-use pi::uart::MiniUart;
+use pi::uart::{BaudRate, MiniUart};
 use shim::io;
 
 use crate::mutex::Mutex;
@@ -19,7 +19,7 @@ impl Console {
     #[inline]
     fn initialize(&mut self) {
         if self.inner.is_none() {
-           self.inner=Some(MiniUart::new())
+            self.inner = Some(MiniUart::new(BaudRate::Baud115200))
         }
     }
 
