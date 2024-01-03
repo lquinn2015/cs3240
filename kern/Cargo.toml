@@ -1,5 +1,8 @@
+
+
 [package]
 name = "kernel"
+edition = "2018"
 version = "0.1.0"
 authors = [
     "Sergio Benitez <sb@sergio.bz>",
@@ -8,15 +11,15 @@ authors = [
     "Sujin Park <sujin.park@gatech.edu>",
     "Mansour Alharthi <mansourah@gatech.edu>"
 ]
-edition = "2018"
 
 [package.metadata.cargo-xbuild]
 memcpy = true
 
 [dependencies]
 pi = { path = "../lib/pi" }
-shim = { path = "../lib/shim", features = ["no_std"] }
+shim = { path = "../lib/shim", features = ["no_std", "alloc"] }
 stack-vec = { path = "../lib/stack-vec/" }
+fat32 = { path = "../lib/fat32/", features = ["no_std"] }
 
 [dev-dependencies]
-shim = { path = "../lib/shim"}
+shim = { path = "../lib/shim", features = ["alloc"] }

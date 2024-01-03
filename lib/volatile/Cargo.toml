@@ -1,3 +1,4 @@
+cargo-features = ["edition2021"]
 [package]
 name = "volatile"
 version = "0.1.0"
@@ -8,6 +9,6 @@ authors = [
     "Sujin Park <sujin.park@gatech.edu>",
     "Mansour Alharthi <mansourah@gatech.edu>"
 ]
-edition = "2018"
+edition = "2021"
 
 [dependencies]

@@ -4,7 +4,7 @@ use core::ptr::write_volatile;
 mod panic;
 
 use crate::kmain;
-
+use core::arch::global_asm;
 global_asm!(include_str!("init/init.s"));
 
 unsafe fn zeros_bss() {

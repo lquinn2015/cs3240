@@ -8,15 +8,18 @@ authors = [
     "Sujin Park <sujin.park@gatech.edu>",
     "Mansour Alharthi <mansourah@gatech.edu>"
 ]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-cfg-if = "0.1"
-core_io = { version = "0.1.20190701", package = "core_io", optional = true }
+#core_io = { version = "0.1.20210325", package = "core_io", optional = true }
+kore_io = { path = "../kore_io", package = "kore_io", optional = true}
+cfg-if = {version = "=0.1"}
+
 
 [dev-dependencies]
-hashbrown = "0.6.3"
+hashbrown = "0.5"
 
 [features]
-no_std = ["core_io"]
-alloc = ["core_io/alloc", "core_io/collections"]
+no_std = ["kore_io"]
+alloc = ["kore_io/alloc"]
+collections = ["alloc"]
