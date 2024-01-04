@@ -172,7 +172,6 @@ impl fmt::Write for MiniUart {
 
 mod uart_io {
     use super::io;
-    use super::io::{Read, Write};
     use super::MiniUart;
     use shim::ioerr;
 
@@ -180,7 +179,7 @@ mod uart_io {
     // waiting at most that time for the _first byte_. It should not wait for
     // any additional bytes but _should_ read as many bytes as possible. If the
     // read times out, an error of kind `TimedOut` should be returned.
-    impl Read for MiniUart {
+    impl io::Read for MiniUart {
         fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
             if self.wait_for_byte().is_err() {
                 return ioerr!(TimedOut, "out of time");
