@@ -193,6 +193,7 @@ fn reserve_and_pad<A: Allocator>(
     Ok(pos)
 }
 
+#[cfg(feature = "alloc")]
 unsafe fn vec_write_unchecked<A>(pos: usize, vec: &mut Vec<u8, A>, buf: &[u8]) -> usize
 where
     A: Allocator,
@@ -202,6 +203,7 @@ where
     pos + buf.len()
 }
 
+#[cfg(feature = "alloc")]
 fn vec_write<A>(pos_mut: &mut u64, vec: &mut Vec<u8, A>, buf: &[u8]) -> io::Result<usize>
 where
     A: Allocator,
@@ -224,6 +226,7 @@ where
     Ok(buf_len)
 }
 
+#[cfg(feature = "alloc")]
 impl<A> Write for Cursor<Vec<u8, A>>
 where
     A: Allocator,

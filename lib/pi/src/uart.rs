@@ -194,7 +194,7 @@ mod uart_io {
     }
     // The `io::Write::write()` method must write all of the requested bytes
     // before returning.
-    impl Write for MiniUart {
+    impl io::Write for MiniUart {
         /// `write` will block if no buffer space is available
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             for b in buf.iter() {
