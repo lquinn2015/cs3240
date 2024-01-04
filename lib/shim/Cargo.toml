@@ -22,4 +22,3 @@ hashbrown = "0.5"
 [features]
 no_std = ["kore_io"]
 alloc = ["kore_io/alloc"]
-collections = ["alloc"]
