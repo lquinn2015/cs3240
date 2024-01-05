@@ -13,6 +13,7 @@ mod error;
 mod impls;
 pub mod prelude;
 
+#[allow(dead_code)]
 const DEFAULT_BUF_SIZE: usize = 64 * 1024;
 
 pub trait Seek {

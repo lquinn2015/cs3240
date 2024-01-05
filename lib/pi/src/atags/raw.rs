@@ -1,7 +1,7 @@
 /// A raw `ATAG` as laid out in memory.
 #[repr(C)]
 pub struct Atag {
-    pub dwords: u32,
+    pub words: u32,
     pub tag: u32,
     pub kind: Kind,
 }
@@ -18,9 +18,17 @@ impl Atag {
     pub const VIDEOLFB: u32 = 0x54410008;
     pub const CMDLINE: u32 = 0x54410009;
 
-    /// FIXME: Returns the ATAG following `self`, if there is one.
     pub fn next(&self) -> Option<&Atag> {
-        unimplemented!()
+        if self.tag == Atag::NONE {
+            None
+        } else {
+            let addr: *const u32 = self as *const Atag as *const u32;
+            // Safety: Descriptors are read only and are not fixed in phys mem
+            unsafe {
+                let next = addr.offset(self.words as isize) as *const Atag;
+                Some(&*next)
+            }
+        }
     }
 }
 
