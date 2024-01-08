@@ -25,6 +25,8 @@ use allocator::Allocator;
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 //pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
 
+use pi::atags::Atags;
+
 fn kmain() -> ! {
     unsafe {
         ALLOCATOR.initialize();
@@ -32,5 +34,8 @@ fn kmain() -> ! {
     }
 
     kprintln!("Welcome to cs3210!");
+    for tag in Atags::get() {
+        kprintln!("Atag found: {:?}", tag);
+    }
     shell::shell("> ");
 }

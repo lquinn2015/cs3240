@@ -23,7 +23,6 @@ impl Atags {
 impl Iterator for Atags {
     type Item = Atag;
 
-    // FIXME: Implement `Iterator` for `Atags`
     fn next(&mut self) -> Option<Atag> {
         let raw = self.ptr?;
         self.ptr = raw.next();

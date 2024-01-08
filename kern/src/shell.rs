@@ -1,6 +1,8 @@
 use shim::io::Write;
 use shim::path::{Path, PathBuf};
 
+use core::result::Result;
+
 use stack_vec::StackVec;
 
 use pi::atags::Atags;
