@@ -8,6 +8,7 @@
 #[cfg(not(test))]
 mod init;
 
+use core::prelude::*;
 extern crate alloc;
 
 pub mod allocator;

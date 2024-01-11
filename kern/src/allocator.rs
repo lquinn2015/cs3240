@@ -12,10 +12,11 @@ mod tests;
 use core::alloc::{GlobalAlloc, Layout};
 use core::fmt;
 use core::option::Option;
+use core::option::Option::*;
+use core::result::Result::*;
 
-use crate::console::kprintln;
 use crate::mutex::Mutex;
-use pi::atags::{Atag, Atags};
+use pi::atags::Atags;
 
 /// `LocalAlloc` is an analogous trait to the standard library's `GlobalAlloc`,
 /// but it takes `&mut self` in `alloc()` and `dealloc()`.
@@ -45,7 +46,6 @@ impl Allocator {
     /// Panics if the system's memory map could not be retrieved.
     pub unsafe fn initialize(&self) {
         let (start, end) = memory_map().expect("failed to find memory map");
-        kprintln!("mem_map [{}, {}]", start, end);
         *self.0.lock() = Some(AllocatorImpl::new(start, end));
     }
 }

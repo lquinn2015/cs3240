@@ -1,6 +1,9 @@
 use core::cell::UnsafeCell;
 use core::fmt;
+use core::marker::{Send, Sync};
 use core::ops::{Deref, DerefMut, Drop};
+use core::option::Option;
+use core::option::Option::*;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 #[repr(align(32))]

@@ -1,5 +1,7 @@
 mod align_util {
     use crate::allocator::util::{align_down, align_up};
+    use core::assert_eq;
+    use core::prelude::rust_2021::test;
 
     #[test]
     fn test_align_down() {
@@ -72,9 +74,11 @@ mod align_util {
 
 mod allocator {
     extern crate alloc;
-    use alloc::raw_vec::RawVec;
+    use alloc::vec::Vec;
 
     use core::alloc::Layout;
+    use core::assert_eq;
+    use core::prelude::rust_2021::test;
 
     use crate::allocator::{bin, bump, LocalAlloc};
 
@@ -82,7 +86,7 @@ mod allocator {
         (@$kind:ident, $name:ident, $mem:expr, |$info:pat| $block:expr) => {
             #[test]
             fn $name() {
-                let mem: RawVec<u8> = RawVec::with_capacity($mem);
+                let mem: Vec<u8> = Vec::with_capacity($mem);
                 let start = mem.ptr() as usize;
                 let end = start + $mem;
 
@@ -293,6 +297,9 @@ mod allocator {
 
 mod linked_list {
     use crate::allocator::linked_list::LinkedList;
+    use crate::allocator::Option::*;
+    use core::assert_eq;
+    use core::prelude::rust_2021::test;
 
     #[test]
     fn example_1() {

@@ -1,6 +1,11 @@
 use core::fmt;
+use core::format_args;
 use pi::uart::{BaudRate, MiniUart};
 use shim::io;
+
+use core::option::Option;
+use core::option::Option::*;
+use core::result::Result::*;
 
 use crate::mutex::Mutex;
 
