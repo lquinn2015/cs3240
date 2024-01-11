@@ -1,7 +1,5 @@
 mod align_util {
     use crate::allocator::util::{align_down, align_up};
-    use core::assert_eq;
-    use core::prelude::v1::*;
 
     #[test]
     fn test_align_down() {
@@ -77,8 +75,6 @@ mod allocator {
     use alloc::vec::Vec;
 
     use core::alloc::Layout;
-    use core::assert_eq;
-    use core::prelude::rust_2021::test;
 
     use crate::allocator::{bin, bump, LocalAlloc};
 
@@ -297,9 +293,6 @@ mod allocator {
 
 mod linked_list {
     use crate::allocator::linked_list::LinkedList;
-    use crate::allocator::Option::*;
-    use core::assert_eq;
-    use core::prelude::rust_2021::test;
 
     #[test]
     fn example_1() {

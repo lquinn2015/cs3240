@@ -11,10 +11,6 @@ mod tests;
 
 use core::alloc::{GlobalAlloc, Layout};
 use core::fmt;
-use core::option::Option;
-use core::option::Option::*;
-use core::result::Result::*;
-use core::write;
 
 use crate::mutex::Mutex;
 use pi::atags::Atags;

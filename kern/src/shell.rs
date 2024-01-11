@@ -5,8 +5,6 @@ use core::result::Result;
 
 use stack_vec::StackVec;
 
-use core::panic;
-use core::prelude::rust_2021::*;
 use pi::atags::Atags;
 
 //use fat32::traits::FileSystem;

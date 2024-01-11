@@ -17,7 +17,6 @@ pub mod mutex;
 pub mod shell;
 
 use console::kprintln;
-use core::concat;
 
 use allocator::Allocator;
 //use fs::FileSystem;
@@ -26,7 +25,6 @@ use allocator::Allocator;
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 //pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
 
-use alloc::vec::*;
 use pi::atags::Atags;
 
 fn kmain() -> ! {

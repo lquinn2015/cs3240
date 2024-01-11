@@ -1,4 +1,3 @@
-use core::prelude::v1::*;
 /// Align `addr` downwards to the nearest multiple of `align`.
 ///
 /// The returned usize is always <= `addr.`

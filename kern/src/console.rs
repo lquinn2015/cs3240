@@ -3,11 +3,6 @@ use core::format_args;
 use pi::uart::{BaudRate, MiniUart};
 use shim::io;
 
-use crate::concat;
-use core::option::Option;
-use core::option::Option::*;
-use core::result::Result::*;
-
 use crate::mutex::Mutex;
 
 /// A global singleton allowing read/write access to the console.

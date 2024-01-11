@@ -14,5 +14,12 @@ rustflags = [
     "-C", "link-arg=-lsd",
 ]
 
+[alias]
+test_pc = "test --target=x86_64-unknown-linux-gnu"
+rustflags = [
+    "-C", "link-arg=-L.cargo",
+    "-Z", "build-std=panic_abort,std"
+]
+
 [unstable]
 build-std = ["core", "alloc", "compiler_builtins"]
