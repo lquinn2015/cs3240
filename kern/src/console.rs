@@ -3,6 +3,7 @@ use core::format_args;
 use pi::uart::{BaudRate, MiniUart};
 use shim::io;
 
+use crate::concat;
 use core::option::Option;
 use core::option::Option::*;
 use core::result::Result::*;
@@ -83,7 +84,7 @@ pub fn _print(args: fmt::Arguments) {
 
     #[cfg(test)]
     {
-        print!("{}", args);
+        kprint!("{}", args);
     }
 }
 

@@ -1,7 +1,7 @@
 mod align_util {
     use crate::allocator::util::{align_down, align_up};
     use core::assert_eq;
-    use core::prelude::rust_2021::test;
+    use core::prelude::v1::*;
 
     #[test]
     fn test_align_down() {

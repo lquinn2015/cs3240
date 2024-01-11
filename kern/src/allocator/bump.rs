@@ -1,5 +1,7 @@
 use core::alloc::Layout;
+use core::prelude::v1::*;
 use core::ptr;
+use core::*;
 
 use crate::allocator::util::*;
 use crate::allocator::LocalAlloc;
@@ -50,6 +52,7 @@ impl LocalAlloc for Allocator {
         assert!(layout.align().is_power_of_two());
 
         let start = align_up(self.current, layout.align());
+        /// if end overflows the null ptr check could fail
         let end = start.saturating_add(layout.size());
 
         if end > self.end {

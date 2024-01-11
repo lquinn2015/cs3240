@@ -4,6 +4,7 @@ use crate::allocator::Option;
 use crate::allocator::Option::*;
 use core::iter::Iterator;
 use core::marker::Send;
+use core::prelude::v1::*;
 use core::{fmt, ptr};
 
 /// An _instrusive_ linked list of addresses.

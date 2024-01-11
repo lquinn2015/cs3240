@@ -8,7 +8,6 @@
 #[cfg(not(test))]
 mod init;
 
-use core::prelude::*;
 extern crate alloc;
 
 pub mod allocator;
@@ -18,6 +17,7 @@ pub mod mutex;
 pub mod shell;
 
 use console::kprintln;
+use core::concat;
 
 use allocator::Allocator;
 //use fs::FileSystem;
@@ -26,6 +26,7 @@ use allocator::Allocator;
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 //pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
 
+use alloc::vec::*;
 use pi::atags::Atags;
 
 fn kmain() -> ! {
@@ -34,9 +35,12 @@ fn kmain() -> ! {
         //FILESYSTEM.initialize();
     }
 
+    let mut v = crate::alloc::vec![];
     kprintln!("Welcome to cs3210!");
     for tag in Atags::get() {
+        v.push(tag.clone());
         kprintln!("Atag found: {:?}", tag);
     }
+    kprintln!("vec is size {:?}", v);
     shell::shell("> ");
 }

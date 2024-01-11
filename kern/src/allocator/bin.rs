@@ -1,6 +1,9 @@
 use core::alloc::Layout;
 use core::fmt;
+use core::prelude::v1::*;
 use core::ptr;
+use core::unimplemented;
+use core::write;
 
 use crate::allocator::linked_list::LinkedList;
 use crate::allocator::util::*;
