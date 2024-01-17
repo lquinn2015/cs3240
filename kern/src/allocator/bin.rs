@@ -14,18 +14,45 @@ use crate::allocator::LocalAlloc;
 ///   map_to_bin(size) -> k
 ///   
 
+const MAX_BINS: usize = 32;
+
 #[derive(Debug)]
 pub struct Allocator {
-    // FIXME: Add the necessary fields.
+    bins: [LinkedList; MAX_BINS],
+    start: usize,
+    current: usize,
+    end: usize,
 }
 
 impl Allocator {
     /// Creates a new bin allocator that will allocate memory from the region
     /// starting at address `start` and ending at address `end`.
     pub fn new(start: usize, end: usize) -> Allocator {
-        unimplemented!("bin allocator")
+        Allocator {
+            bins: [LinkedList::new(); MAX_BINS],
+            start,
+            current: start,
+            end,
+        }
     }
 }
+fn map2bin(size: usize) -> usize {
+    let mut bin = 3;
+    while size > (0b1 << bin) {
+        bin += 1;
+    }
+    bin - 3
+}
+
+fn size4bin(bin: usize) -> usize {
+    0b1 << (3 + bin)
+}
+
+fn power_of_two(n: usize) -> bool {
+    (n & (n - 1)) == 0
+}
+
+use crate::kprintln;
 
 impl LocalAlloc for Allocator {
     /// Allocates memory. Returns a pointer meeting the size and alignment
@@ -50,7 +77,44 @@ impl LocalAlloc for Allocator {
     /// or `layout` does not meet this allocator's
     /// size or alignment constraints.
     unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
-        unimplemented!("bin allocator")
+        assert!(power_of_two(layout.align()));
+
+        let bin = map2bin(core::cmp::max(layout.size(), layout.align()));
+        if bin >= MAX_BINS {
+            kprintln!("[MEM], map2bin end up as {} > MAX_BINS {}", bin, MAX_BINS);
+            return ptr::null_mut(); // OOM to large of alloc
+        }
+
+        for node in self.bins[bin].iter_mut() {
+            if node.value() as usize % layout.align() == 0 {
+                // require alignment
+                return node.pop() as *mut u8;
+            }
+        }
+
+        let alloc_size = size4bin(bin);
+        let start = align_up(self.current, layout.align());
+        let start = match start.checked_add(alloc_size) {
+            Some(val) => val,
+            None => {
+                kprintln!("[MEM] alloc had overflow on mapping new bin");
+                return ptr::null_mut();
+            }
+        };
+        if start > self.end {
+            kprintln!("[MEM] bin allocator OOM");
+            return ptr::null_mut();
+        }
+
+        #[cfg(DBG)]
+        kprintln!(
+            "alloc {} to bin {}, size {}",
+            start as usize,
+            bin,
+            alloc_size
+        );
+        self.current = start + alloc_size;
+        start as *mut u8
     }
 
     /// Deallocates the memory referenced by `ptr`.
@@ -67,8 +131,18 @@ impl LocalAlloc for Allocator {
     /// Parameters not meeting these conditions may result in undefined
     /// behavior.
     unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
-        unimplemented!("bin allocator")
+        assert!(power_of_two(layout.align()));
+
+        let alloc_size = core::cmp::max(layout.size(), layout.align());
+        let bin = map2bin(alloc_size);
+        assert!(bin < MAX_BINS);
+        #[cfg(DBG)]
+        kprintln!(
+            "dealloc {} to bin {} of size {}",
+            ptr as usize,
+            bin,
+            alloc_size
+        );
+        self.bins[bin].push(ptr as *mut usize);
     }
 }
-
-// FIXME: Implement `Debug` for `Allocator`.

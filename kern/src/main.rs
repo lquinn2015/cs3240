@@ -33,12 +33,22 @@ fn kmain() -> ! {
         //FILESYSTEM.initialize();
     }
 
-    let mut v = crate::alloc::vec![];
-    kprintln!("Welcome to cs3210!");
-    for tag in Atags::get() {
-        v.push(tag.clone());
-        kprintln!("Atag found: {:?}", tag);
+    kprintln!("Welcome to xphosia!");
+
+    for z in 0..20 {
+        for i in 1..100 {
+            let mut v = crate::alloc::vec![];
+            for j in 0..(i + 10) {
+                v.push(i + j);
+            }
+            let mut u = crate::alloc::vec![];
+            for j in 0..(i + 10) {
+                u.push(i + j);
+            }
+            kprintln!("v is {}", v.len());
+        }
     }
-    kprintln!("vec is size {:?}", v);
+    kprintln!("Allocator {:x?}", ALLOCATOR);
+
     shell::shell("> ");
 }
