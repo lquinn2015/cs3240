@@ -1,35 +1,66 @@
 use core::fmt;
+use core::fmt::Display;
 use shim::const_assert_size;
 use shim::io;
+use shim::newioerr;
 
 use crate::traits::BlockDevice;
 
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct CHS {
-    // FIXME: Fill me in.
+    head: u8,
+    sector_and_cylinder_start: u16,
 }
 
-// FIXME: implement Debug for CHS
+impl CHS {
+    fn start_sector(&self) -> u8 {
+        (self.sector_and_cylinder_start & 0x3F) as u8
+    }
+    fn start_cylinder(&self) -> u16 {
+        self.sector_and_cylinder_start >> 6
+    }
+}
+impl fmt::Debug for CHS {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CHS")
+            .field("sector", &format!("{}", self.start_sector()))
+            .finish()
+    }
+}
 
 const_assert_size!(CHS, 3);
 
 #[repr(C, packed)]
+#[derive(Debug)]
 pub struct PartitionEntry {
-    // FIXME: Fill me in.
+    boot_indicator: u8,
+    start_chs: CHS,
+    partition_type: u8,
+    end_chs: CHS,
+    sector_offset: u32,
+    num_sectors: u32,
 }
 
-// FIXME: implement Debug for PartitionEntry
+impl PartitionEntry {
+    const BOOTABLE: u8 = 0x80;
+
+    pub fn starting_sector(&self) -> u32 {
+        self.sector_offset
+    }
+}
 
 const_assert_size!(PartitionEntry, 16);
 
 /// The master boot record (MBR).
 #[repr(C, packed)]
+#[derive(Debug)]
 pub struct MasterBootRecord {
-    // FIXME: Fill me in.
+    bootstrap: [u8; 436],
+    disk_id: [u8; 10],
+    partions: [PartitionEntry; 4],
+    magic: [u8; 2],
 }
-
-// FIXME: implemente Debug for MaterBootRecord
 
 const_assert_size!(MasterBootRecord, 512);
 
@@ -43,6 +74,16 @@ pub enum Error {
     BadSignature,
 }
 
+impl Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Io(io) => write!(f, "{}", io),
+            Error::UnknownBootIndicator(val) => write!(f, "UnknownBootIndicator[{}]", val),
+            Error::BadSignature => write!(f, "fat32 BadSignature"),
+        }
+    }
+}
+
 impl MasterBootRecord {
     /// Reads and returns the master boot record (MBR) from `device`.
     ///
@@ -52,7 +93,32 @@ impl MasterBootRecord {
     /// Returns `UnknownBootIndicator(n)` if partition `n` contains an invalid
     /// boot indicator. Returns `Io(err)` if the I/O error `err` occured while
     /// reading the MBR.
-    pub fn from<T: BlockDevice>(mut device: T) -> Result<MasterBootRecord, Error> {
-        unimplemented!("MasterBootRecord::from()")
+    pub fn from<T: BlockDevice>(mut dev: T) -> Result<MasterBootRecord, Error> {
+        let mut buf: [u8; 512] = [0; 512];
+
+        match dev.read_sector(0, &mut buf) {
+            Err(e) => Err::<T, Error>(Error::Io(e)),
+            Ok(n) => {
+                if n != buf.len() {
+                    return Err(Error::Io(newioerr!(
+                        UnexpectedEof,
+                        "Insufficient bytes from sector"
+                    )));
+                }
+
+                let mbr = unsafe { &*(buf.as_ptr() as *const MasterBootRecord) };
+                if mbr.magic != [0x55, 0xaa] {
+                    return Err(Error::BadSignature);
+                }
+
+                for i in 0..4usize {
+                    let indicator = mbr.partions[i];
+                }
+
+                return Ok(*mbr);
+            }
+        };
+
+        unreachable!("[fat32] Should be unreachable")
     }
 }

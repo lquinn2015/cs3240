@@ -1,5 +1,6 @@
 #![feature(decl_macro)]
 #![cfg_attr(feature = "no_std", no_std)]
+#![allow(unused_imports)] // remove this
 
 #[cfg(not(feature = "no_std"))]
 extern crate core;
