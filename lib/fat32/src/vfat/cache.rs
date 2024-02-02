@@ -2,9 +2,9 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::fmt;
 use hashbrown::HashMap;
-use shim::io;
+use shim::{io, newioerr};
 
-use crate::traits::BlockDevice;
+use crate::{traits::BlockDevice, util::SliceExt};
 
 #[derive(Debug)]
 struct CacheEntry {
@@ -25,6 +25,8 @@ pub struct CachedPartition {
     device: Box<dyn BlockDevice>,
     cache: HashMap<u64, CacheEntry>,
     partition: Partition,
+    // Add dedicated line buffer
+    cache_line_buffer: Vec<u32>,
 }
 
 impl CachedPartition {
@@ -54,6 +56,7 @@ impl CachedPartition {
             device: Box::new(device),
             cache: HashMap::new(),
             partition: partition,
+            cache_line_buffer: Vec::with_capacity(128),
         }
     }
 
@@ -76,6 +79,52 @@ impl CachedPartition {
         Some(physical_sector)
     }
 
+    /// Loads buffer with the data available at the given sector
+    ///
+    /// Will throw an IO error if sector id's are bad
+    ///
+    /// Disk 2 cache
+    fn load_sector(&mut self, buf: &mut Vec<u8>, sector: u64) -> io::Result<()> {
+        buf.clear();
+        buf.reserve(self.partition.sector_size as usize);
+
+        let phy_id = self
+            .virtual_to_physical(sector)
+            .ok_or(io::ErrorKind::InvalidInput)?;
+
+        // this line buffer storage is always aligned and available. Multi threading dangerous
+        let mut line_buffer: Vec<u8> =
+            unsafe { Vec::from_raw_parts(self.cache_line_buffer.as_mut_ptr() as *mut u8, 0, 512) };
+
+        for i in 0..self.factor() {
+            self.device.read_all_sector(phy_id + i, &mut line_buffer)?;
+        }
+
+        Ok(())
+    }
+
+    /// Grabs a Cache Entry from the cache, If non exists it loads it from
+    /// the cache
+    ///
+    /// Cache 2 mem
+    fn get_entry(&mut self, sector: u64) -> io::Result<&mut CacheEntry> {
+        if let None = self.cache.get_mut(&sector) {
+            let mut buf: Vec<u8> = Vec::new();
+            self.load_sector(&mut buf, sector)?;
+
+            self.cache.insert(
+                sector,
+                CacheEntry {
+                    data: buf,
+                    dirty: false,
+                },
+            );
+        }
+
+        // safe to unwrap because load sector would have errored
+        Ok(self.cache.get_mut(&sector).unwrap())
+    }
+
     /// Returns a mutable reference to the cached sector `sector`. If the sector
     /// is not already cached, the sector is first read from the disk.
     ///
@@ -87,7 +136,10 @@ impl CachedPartition {
     ///
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get_mut(&mut self, sector: u64) -> io::Result<&mut [u8]> {
-        unimplemented!("CachedPartition::get_mut()")
+        self.get_entry(sector).map(|entry| {
+            entry.dirty = true;
+            entry.data.as_mut_slice()
+        })
     }
 
     /// Returns a reference to the cached sector `sector`. If the sector is not
@@ -97,7 +149,7 @@ impl CachedPartition {
     ///
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get(&mut self, sector: u64) -> io::Result<&[u8]> {
-        unimplemented!("CachedPartition::get()")
+        self.get_entry(sector).map(|entry| entry.data.as_slice())
     }
 }
 
@@ -105,15 +157,29 @@ impl CachedPartition {
 // `write_sector` methods should only read/write from/to cached sectors.
 impl BlockDevice for CachedPartition {
     fn sector_size(&self) -> u64 {
-        unimplemented!()
+        self.sector_size()
     }
 
     fn read_sector(&mut self, sector: u64, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!()
+        match self.get(sector) {
+            Ok(read_sector) => {
+                let amt = core::cmp::min(read_sector.len(), buf.len());
+                buf[..amt].copy_from_slice(&read_sector[..amt]);
+                Ok(amt)
+            }
+            Err(e) => Err(e),
+        }
     }
 
     fn write_sector(&mut self, sector: u64, buf: &[u8]) -> io::Result<usize> {
-        unimplemented!()
+        match self.get_mut(sector) {
+            Ok(write_sector) => {
+                let amt = core::cmp::min(write_sector.len(), buf.len());
+                write_sector[..amt].copy_from_slice(&buf[..amt]);
+                Ok(amt)
+            }
+            Err(e) => Err(e),
+        }
     }
 }
 
