@@ -12,8 +12,8 @@ extern crate alloc;
 compile_error!("only little endian platforms supported");
 
 mod mbr;
-#[cfg(test)]
-mod tests;
+//#[cfg(test)]
+//mod tests;
 mod util;
 
 pub mod traits;

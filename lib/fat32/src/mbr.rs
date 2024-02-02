@@ -32,7 +32,7 @@ impl fmt::Debug for CHS {
 const_assert_size!(CHS, 3);
 
 #[repr(C, packed)]
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct PartitionEntry {
     boot_indicator: u8,
     start_chs: CHS,
@@ -54,7 +54,7 @@ const_assert_size!(PartitionEntry, 16);
 
 /// The master boot record (MBR).
 #[repr(C, packed)]
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct MasterBootRecord {
     bootstrap: [u8; 436],
     disk_id: [u8; 10],
@@ -97,7 +97,7 @@ impl MasterBootRecord {
         let mut buf: [u8; 512] = [0; 512];
 
         match dev.read_sector(0, &mut buf) {
-            Err(e) => Err::<T, Error>(Error::Io(e)),
+            Err(e) => Err(Error::Io(e)),
             Ok(n) => {
                 if n != buf.len() {
                     return Err(Error::Io(newioerr!(
@@ -112,13 +112,44 @@ impl MasterBootRecord {
                 }
 
                 for i in 0..4usize {
-                    let indicator = mbr.partions[i];
+                    let indicator = mbr.partions[i].boot_indicator;
+                    if indicator != 0x0 && indicator != PartitionEntry::BOOTABLE {
+                        return Err(Error::UnknownBootIndicator(i as u8));
+                    }
                 }
 
-                return Ok(*mbr);
+                Ok(*mbr)
             }
-        };
+        }
+    }
 
-        unreachable!("[fat32] Should be unreachable")
+    pub fn fat32_partition(&self) -> Option<&PartitionEntry> {
+        self.partions
+            .iter()
+            .find(|x| x.partition_type == 0xB || x.partition_type == 0xC)
+    }
+}
+
+#[cfg(test)]
+mod mbr_tests {
+
+    use crate::mbr::MasterBootRecord;
+    use std::fs::File;
+    use std::io;
+    use std::io::prelude::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn mbr_from_test() {
+        let mut f = File::open("test_data/mbr.img").unwrap();
+        let mut buf: [u8; 512] = [0; 512];
+        assert_eq!(f.read(&mut buf).unwrap(), 512);
+
+        let cursor: Cursor<&mut [u8]> = Cursor::new(&mut buf);
+        let mbr = MasterBootRecord::from(cursor);
+        assert_eq!(mbr.is_ok(), true);
+        let mbr = mbr.unwrap();
+        let fats = mbr.fat32_partition();
+        assert_eq!(fats.is_some(), true);
     }
 }

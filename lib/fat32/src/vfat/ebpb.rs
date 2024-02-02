@@ -5,6 +5,7 @@ use crate::traits::BlockDevice;
 use crate::vfat::Error;
 
 #[repr(C, packed)]
+#[derive(Clone, Copy)]
 pub struct BiosParameterBlock {
     jump_code: [u8; 3],
     oem_ident: [u8; 8],
@@ -49,9 +50,9 @@ impl BiosParameterBlock {
     ///
     /// If the EBPB signature is invalid, returns an error of `BadSignature`.
     pub fn from<T: BlockDevice>(mut device: T, sector: u64) -> Result<BiosParameterBlock, Error> {
-        let mut buf: [u8; 512];
+        let mut buf: [u8; 512] = [0; 512];
 
-        match device.read_sector(512, &mut buf) {
+        match device.read_sector(sector, &mut buf) {
             Err(e) => Err(e.into()),
             Ok(n) if n != buf.len() => Err(Error::Io(newioerr!(
                 UnexpectedEof,
@@ -94,5 +95,36 @@ impl fmt::Debug for BiosParameterBlock {
                 &format_args!("{}", self.logical_sectors()),
             )
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod ebpb_tests {
+
+    use crate::vfat::*;
+    use std::fs::File;
+    use std::io;
+    use std::io::prelude::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn ebpb_test() {
+        let mut f = File::open("test_data/ebpb1.img").unwrap();
+        let mut buf: [u8; 512] = [0; 512];
+        assert_eq!(f.read(&mut buf).unwrap(), 512);
+
+        let mut tbuf: [u8; 512] = [0; 512];
+        tbuf[..].copy_from_slice(&buf[..]);
+        let cursor: Cursor<&mut [u8]> = Cursor::new(&mut tbuf);
+
+        let ebpb = BiosParameterBlock::from(cursor, 0);
+        assert_eq!(ebpb.is_ok(), true);
+
+        let mut tbuf: [u8; 512] = [0; 512];
+        tbuf[..].copy_from_slice(&buf[..]);
+        let cursor: Cursor<&mut [u8]> = Cursor::new(&mut tbuf);
+
+        let ebpb = BiosParameterBlock::from(cursor, 1);
+        assert_eq!(ebpb.is_ok(), false);
     }
 }
