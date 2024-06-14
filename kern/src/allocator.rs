@@ -12,6 +12,7 @@ mod tests;
 use core::alloc::{GlobalAlloc, Layout};
 use core::fmt;
 
+use crate::console::kprintln;
 use crate::mutex::Mutex;
 use pi::atags::Atags;
 
@@ -76,6 +77,10 @@ extern "C" {
 pub fn memory_map() -> Option<(usize, usize)> {
     let page_size = 1 << 12;
     let binary_end = unsafe { (&__text_end as *const u8) as usize };
+
+    for x in Atags::get() {
+        kprintln!("Atgs {:?}", x);
+    }
 
     Atags::get().find_map(|x| x.mem()).map(|m| {
         (

@@ -7,13 +7,15 @@ OBJCPY := cargo objcopy -- --strip-all -O binary
 TTY_PATH := /dev/ttyUSB0
 QEMU_ARGS ?=
 
+CARGO_QEMU = $(if $(QEMU), --features qemu,)
+
 .PHONY: all build qemu transmit objdump nm check clean install test
 
 all: build
 
 build:
 	@echo "+ Building build/$(KERN).elf [xbuild/$@]"
-	@cargo build --release
+	@cargo build --release $(CARGO_QEMU)
 	@mkdir -p build
 	@cp -f $(TARGET) build/$(KERN).elf
 
@@ -22,6 +24,7 @@ build:
 
 check:
 	@cargo xcheck
+
 
 qemu: build
 	./qemu.sh build/$(KERN).bin -drive file=$(SDCARD),format=raw,if=sd $(QEMU_ARGS)

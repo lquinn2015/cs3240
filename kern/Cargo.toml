@@ -12,6 +12,10 @@ authors = [
     "Mansour Alharthi <mansourah@gatech.edu>"
 ]
 
+
+[features]
+qemu = []
+
 [package.metadata.cargo-xbuild]
 memcpy = true
 

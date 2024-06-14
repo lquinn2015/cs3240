@@ -24,6 +24,7 @@ unsafe fn zeros_bss() {
     }
 }
 
+#[cfg(feature = "qemu")]
 unsafe fn inject_atags() {
     core::ptr::write(
         pi::atags::ATAG_BASE as *mut [u32; 23],
@@ -34,6 +35,7 @@ unsafe fn inject_atags() {
 #[no_mangle]
 unsafe fn kinit() -> ! {
     zeros_bss();
+    #[cfg(feature = "qemu")]
     inject_atags();
     kmain();
 }

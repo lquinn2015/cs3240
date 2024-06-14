@@ -25,8 +25,6 @@ use allocator::Allocator;
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 //pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
 
-use pi::atags::Atags;
-
 fn kmain() -> ! {
     unsafe {
         ALLOCATOR.initialize();
@@ -35,7 +33,7 @@ fn kmain() -> ! {
 
     kprintln!("Welcome to xphosia!");
 
-    for z in 0..20 {
+    for _z in 0..20 {
         for i in 1..100 {
             let mut v = crate::alloc::vec![];
             for j in 0..(i + 10) {
