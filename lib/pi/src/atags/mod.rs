@@ -4,7 +4,7 @@ mod raw;
 pub use self::atag::*;
 
 /// The address at which the firmware loads the ATAGS.
-const ATAG_BASE: usize = 0x100;
+pub const ATAG_BASE: usize = 0x100;
 
 /// An iterator over the ATAGS on this system.
 pub struct Atags {
@@ -29,6 +29,38 @@ impl Iterator for Atags {
         Some(raw.into())
     }
 }
+
+pub const PI_ATAGS_BOOT: [u32; 23] = [
+    // CORE
+    5,
+    raw::Atag::CORE, // Tag
+    0,               // flags
+    0,               // page_size
+    0,               // root dev
+    // MEM
+    4,
+    raw::Atag::MEM,
+    0,
+    1 << 20, // 1 GiB ram?
+    // UNKNOWN
+    3,
+    raw::Atag::RAMDISK,
+    0,
+    // CMDLINE
+    4,
+    raw::Atag::CMDLINE,
+    0,
+    0,
+    // UNKNOWN
+    5,
+    raw::Atag::REVISION,
+    0,
+    0,
+    0,
+    // NONE
+    2,
+    raw::Atag::NONE,
+];
 
 #[cfg(test)]
 mod test {

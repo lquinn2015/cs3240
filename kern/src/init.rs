@@ -24,8 +24,16 @@ unsafe fn zeros_bss() {
     }
 }
 
+unsafe fn inject_atags() {
+    core::ptr::write(
+        pi::atags::ATAG_BASE as *mut [u32; 23],
+        pi::atags::PI_ATAGS_BOOT,
+    );
+}
+
 #[no_mangle]
 unsafe fn kinit() -> ! {
     zeros_bss();
+    inject_atags();
     kmain();
 }
