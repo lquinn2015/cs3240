@@ -34,12 +34,12 @@ const_assert_size!(CHS, 3);
 #[repr(C, packed)]
 #[derive(Clone, Copy, Debug)]
 pub struct PartitionEntry {
-    boot_indicator: u8,
-    start_chs: CHS,
-    partition_type: u8,
-    end_chs: CHS,
-    sector_offset: u32,
-    num_sectors: u32,
+    pub boot_indicator: u8,
+    pub start_chs: CHS,
+    pub partition_type: u8,
+    pub end_chs: CHS,
+    pub sector_offset: u32,
+    pub num_sectors: u32,
 }
 
 impl PartitionEntry {
@@ -58,7 +58,7 @@ const_assert_size!(PartitionEntry, 16);
 pub struct MasterBootRecord {
     bootstrap: [u8; 436],
     disk_id: [u8; 10],
-    partions: [PartitionEntry; 4],
+    partitons: [PartitionEntry; 4],
     magic: [u8; 2],
 }
 
@@ -112,7 +112,7 @@ impl MasterBootRecord {
                 }
 
                 for i in 0..4usize {
-                    let indicator = mbr.partions[i].boot_indicator;
+                    let indicator = mbr.partitons[i].boot_indicator;
                     if indicator != 0x0 && indicator != PartitionEntry::BOOTABLE {
                         return Err(Error::UnknownBootIndicator(i as u8));
                     }
@@ -124,7 +124,7 @@ impl MasterBootRecord {
     }
 
     pub fn fat32_partition(&self) -> Option<&PartitionEntry> {
-        self.partions
+        self.partitons
             .iter()
             .find(|x| x.partition_type == 0xB || x.partition_type == 0xC)
     }

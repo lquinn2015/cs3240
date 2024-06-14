@@ -55,7 +55,7 @@ impl CachedPartition {
         CachedPartition {
             device: Box::new(device),
             cache: HashMap::new(),
-            partition: partition,
+            partition,
             cache_line_buffer: Vec::with_capacity(128),
         }
     }
@@ -79,6 +79,13 @@ impl CachedPartition {
         Some(physical_sector)
     }
 
+    // create 4 byte aligend buffer
+    fn line_buffer(buffer: &mut Vec<u32>, sector_size: u64) -> &mut [u8] {
+        let length = (sector_size / 4) + sector_size % 4;
+        buffer.resize(length as usize, 0);
+        unsafe { buffer.as_mut_slice().cast_mut() }
+    }
+
     /// Loads buffer with the data available at the given sector
     ///
     /// Will throw an IO error if sector id's are bad
@@ -93,11 +100,11 @@ impl CachedPartition {
             .ok_or(io::ErrorKind::InvalidInput)?;
 
         // this line buffer storage is always aligned and available. Multi threading dangerous
-        let mut line_buffer: Vec<u8> =
-            unsafe { Vec::from_raw_parts(self.cache_line_buffer.as_mut_ptr() as *mut u8, 0, 512) };
-
         for i in 0..self.factor() {
-            self.device.read_all_sector(phy_id + i, &mut line_buffer)?;
+            let line = Self::line_buffer(&mut self.cache_line_buffer, self.device.sector_size());
+            self.device.read_sector(phy_id + i, line)?;
+
+            buf.extend(line.iter());
         }
 
         Ok(())
@@ -157,7 +164,7 @@ impl CachedPartition {
 // `write_sector` methods should only read/write from/to cached sectors.
 impl BlockDevice for CachedPartition {
     fn sector_size(&self) -> u64 {
-        self.sector_size()
+        self.partition.sector_size
     }
 
     fn read_sector(&mut self, sector: u64, buf: &mut [u8]) -> io::Result<usize> {

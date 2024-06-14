@@ -39,33 +39,52 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     where
         T: BlockDevice + 'static,
     {
-        unimplemented!("VFat::from()")
+        let mbr = MasterBootRecord::from(device).map_err(|e| Error::Mbr(e))?;
+        let partition = mbr.fat32_partition().ok_or(Error::NotFound)?;
+
+        let bpb = BiosParameterBlock::from(&mut device, partition.starting_sector() as u64)?;
+
+        Ok(HANDLE::new(VFat {
+            phantom: PhantomData {},
+            device: CachedPartition::new(
+                device,
+                Partition {
+                    start: partition.starting_sector() as u64,
+                    num_sectors: (partition.num_sectors as u64)
+                        / ((bpb.bytes_per_sector as u64) / (device.sector_size() as u64)),
+                    sector_size: bpb.bytes_per_sector as u64,
+                },
+            ),
+            bytes_per_sector: bpb.bytes_per_sector,
+            sectors_per_cluster: bpb.sectors_per_cluster,
+            sectors_per_fat: bpb.sectors_per_fat,
+            fat_start_sector: bpb.reserved_sectors as u64,
+            data_start_sector: (bpb.reserved_sectors as u64)
+                + (bpb.num_fats as u64 * bpb.sectors_per_fat as u64),
+            rootdir_cluster: Cluster::from(bpb.root_cluster),
+        }))
     }
 
-    // TODO: The following methods may be useful here:
-    //
     //  * A method to read from an offset of a cluster into a buffer.
-    //
-    //    fn read_cluster(
-    //        &mut self,
-    //        cluster: Cluster,
-    //        offset: usize,
-    //        buf: &mut [u8]
-    //    ) -> io::Result<usize>;
-    //
+    fn read_cluster(
+        &mut self,
+        cluster: Cluster,
+        offset: usize,
+        buf: &mut [u8],
+    ) -> io::Result<usize> {
+    }
+
     //  * A method to read all of the clusters chained from a starting cluster
     //    into a vector.
-    //
-    //    fn read_chain(
-    //        &mut self,
-    //        start: Cluster,
-    //        buf: &mut Vec<u8>
-    //    ) -> io::Result<usize>;
-    //
+    fn read_chain(&mut self, start: Cluster, buf: &mut Vec<u8>) -> io::Result<usize> {
+        todo!()
+    }
+
     //  * A method to return a reference to a `FatEntry` for a cluster where the
     //    reference points directly into a cached sector.
-    //
-    //    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry>;
+    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> {
+        todo!()
+    }
 }
 
 impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
