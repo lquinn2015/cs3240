@@ -8,7 +8,7 @@ impl From<u32> for Cluster {
 }
 
 impl Cluster {
-    pub fn raw(&self) -> u32 {
+    pub fn num(&self) -> u32 {
         self.0
     }
 }

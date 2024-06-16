@@ -65,6 +65,33 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         }))
     }
 
+    fn start_sector(&mut self, curr: Cluster) -> io::Result<u64> {
+        if curr.num() < 2 {
+            Err(newioerr!(InvalidData, "Unexpected Cluster num"))
+        } else {
+            Ok(self.data_start_sector as u64
+                + (curr.num() - 2) as u64 * self.sectors_per_cluster as u64)
+        }
+    }
+
+    fn cluster_byte_size(&mut self) -> usize {
+        (self.sectors_per_cluster as u64 * self.bytes_per_sector as u64) as usize
+    }
+
+    /*
+        [-------][------][---------]
+        |             .
+        |            / \
+        |   offset ---|
+        |
+        cluster
+
+        start_addr =   cluster_addr + offset
+        start_sector  = start_addr / bps
+
+
+    */
+
     //  * A method to read from an offset of a cluster into a buffer.
     fn read_cluster(
         &mut self,
@@ -72,18 +99,90 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         offset: usize,
         buf: &mut [u8],
     ) -> io::Result<usize> {
+        // if offset is larger than this this sector
+        if offset >= self.cluster_byte_size() {
+            return Ok(0);
+        }
+
+        let start_sector = self.start_sector(cluster)?;
+        let sec_size = self.bytes_per_sector as u64;
+        let end_sector = self.sectors_per_cluster as u64 + start_sector;
+        let start_addr = start_sector * sec_size + offset as u64;
+        let first_sector = start_addr / sec_size;
+        let mut n = 0;
+
+        // reach each sector that has
+        for c_sector in first_sector..=end_sector {
+            let bytes = self.device.get(c_sector)?;
+            if bytes.len() != sec_size as usize {
+                return Err(newioerr!(UnexpectedEof, "Missing bytes in sector read"));
+            }
+            let c_sector_addr = c_sector * sec_size;
+            let offset = if c_sector_addr > start_addr {
+                (c_sector_addr - start_addr) as usize
+            } else {
+                0
+            };
+            let amt2cpy = core::cmp::min(sec_size as usize - offset, buf.len() - n);
+            buf[n..n + amt2cpy].copy_from_slice(&bytes[offset..offset + amt2cpy]);
+
+            n += amt2cpy;
+            if n >= buf.len() {
+                break;
+            }
+        }
+
+        Ok(n)
     }
 
     //  * A method to read all of the clusters chained from a starting cluster
     //    into a vector.
     fn read_chain(&mut self, start: Cluster, buf: &mut Vec<u8>) -> io::Result<usize> {
-        todo!()
+        let mut n = 0;
+        let mut cluster = start;
+        loop {
+            let start = buf.len();
+            buf.resize(start + self.bytes_per_cluster(), 0);
+            let bytes = self.read_cluster(cluster, 0, &mut buf.as_mut_slice()[start..])?;
+            buf.truncate(start + bytes); // eliminate over read
+            n += bytes;
+
+            match self.next_cluster(cluster)? {
+                Some(next_cluster) => cluster = next_cluster,
+                None => break,
+            };
+        }
+        Ok(n)
+    }
+
+    #[inline]
+    pub fn bytes_per_cluster(&mut self) -> usize {
+        (self.bytes_per_sector as u64 * self.sectors_per_cluster as u64) as usize
+    }
+
+    // Will resolve the Option for the next cluster
+    fn next_cluster(&mut self, curr: Cluster) -> io::Result<Option<Cluster>> {
+        match self.fat_entry(curr)?.status() {
+            Status::Data(next_cluster) => Ok(Some(next_cluster)),
+            Status::Eoc(_) => Ok(None),
+            _ => Err(newioerr!(InvalidData, "Unexpected Cluster type")),
+        }
     }
 
     //  * A method to return a reference to a `FatEntry` for a cluster where the
     //    reference points directly into a cached sector.
     fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> {
-        todo!()
+        let entry_offset = cluster.num() as u64 * 4;
+        let logical_sector = self.fat_start_sector + entry_offset / self.bytes_per_sector as u64;
+
+        // access sector contained entry
+        let sector = self.device.get(logical_sector)?;
+
+        // access entry in this sector
+        let index = (entry_offset % self.bytes_per_sector as u64) / 4;
+        // Safety sector contains a series of FatEntry each is u32  i.e int mult of u8
+        let fat_entries: &[FatEntry] = unsafe { sector.cast() };
+        Ok(&fat_entries[index as usize])
     }
 }
 
