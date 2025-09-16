@@ -1,0 +1,11 @@
+cargo-features = ["edition2021"]
+
+[package]
+name = "vfs"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+shim = { path='../shim',features = ["alloc"] }
+
