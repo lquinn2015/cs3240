@@ -1,12 +1,7 @@
 use super::traits::block_device::BlockDevice;
-use std::{
-    io::{Read, Seek, Write},
-    mem::MaybeUninit,
-    ops::Deref,
-    ptr::copy_nonoverlapping,
-};
+use std::io::{self, Read, Seek, Write};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Ext2Inode {
     mode: u16,
@@ -33,7 +28,7 @@ pub struct Ext2Inode {
 
 const EXT2_SUPER_MAGIC: u16 = 0xEF53;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Ext2SuperBlock {
     inode_count: u32,
@@ -81,7 +76,7 @@ pub struct Ext2SuperBlock {
     reserved: [u32; 204],
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Ext2GroupDesc {
     block_bitmap_idx: u32,
@@ -94,7 +89,7 @@ pub struct Ext2GroupDesc {
     reserved: [u32; 3],
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Ext2DirEntry {
     inode: u32,
@@ -117,13 +112,46 @@ impl Ext2DevHandle {
         let mut dev = std::fs::File::open(p)?;
 
         let mut buf = [0u8; 1024];
+
         dev.seek(std::io::SeekFrom::Start(1024))?;
         dev.read(&mut buf)?;
 
-        // TODO: bytemuck
         let sb: Ext2SuperBlock = unsafe { core::mem::transmute(buf) };
 
         Ok(Ext2DevHandle { dev, sb })
+    }
+
+    fn read_struct<C: Copy>(&mut self, offset: u64) -> io::Result<C> {
+        let mut t = std::mem::MaybeUninit::<C>::uninit();
+        let s_sz = std::mem::size_of::<C>() as usize;
+
+        let sector_start = offset / self.sector_size();
+        let off_start = (offset - (sector_start * self.sector_size())) as usize;
+
+        assert!(std::mem::size_of::<C>() <= self.sector_size() as usize);
+        let mut sector_buf = std::mem::MaybeUninit::<[u8; 512]>::uninit();
+
+        match self.read_sector(sector_start, unsafe {
+            std::slice::from_raw_parts_mut(sector_buf.as_mut_ptr() as *mut u8, 512)
+        }) {
+            Ok(n) if n < s_sz => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "partial sector read",
+                ))
+            }
+            io::Result::Err(e) => return Err(e),
+            _ => {}
+        };
+
+        let sector_buf = unsafe { sector_buf.assume_init() };
+        let t = unsafe {
+            (t.as_mut_ptr() as *mut u8)
+                .copy_from_nonoverlapping(sector_buf.as_ptr().add(off_start), s_sz);
+            t.assume_init()
+        };
+
+        Ok(t)
     }
 
     pub fn read_superblock(&mut self) -> &Ext2SuperBlock {
@@ -141,57 +169,13 @@ impl Ext2DevHandle {
         let inode_size = core::mem::size_of::<Ext2Inode>() as u32;
 
         // FS block idx
-        let inode_table_idx = my_bg_desc.inode_table_idx;
-        let inode_block_idx = (idx * inode_size) / block_size;
-        let inode_block_offs = ((idx * inode_size) % block_size) as usize;
-        println!("inode_offset in block {:x}", inode_block_offs);
+        let inode_table_addr = (my_bg_desc.inode_table_idx * block_size) as u64;
+        let inode_off = (idx * inode_size) as u64;
+        let off = inode_table_addr + inode_off;
 
-        let buf = *self.read_fs_block(inode_table_idx + inode_block_idx);
+        println!("inode byte addr: {off:0x}, inode_table_idx: {}, inode_table_addr: {inode_table_addr:0x}, inode_bg_off: {idx}", my_bg_desc.inode_table_idx);
 
-        println!("{:?}", &buf[inode_block_offs..]);
-
-        let mut descr_buf = [0u8; 128];
-        let descr = unsafe {
-            core::ptr::copy_nonoverlapping(
-                buf.as_ptr().add(inode_block_offs as usize),
-                descr_buf.as_mut_ptr(),
-                core::mem::size_of::<Ext2Inode>(),
-            );
-
-            core::mem::transmute(descr_buf)
-        };
-
-        descr
-    }
-
-    fn read_fs_block(&mut self, bidx: u32) -> Box<[u8; 0x1000]> {
-        let mut arr: Box<[u8; 4096]> = Box::new([0u8; 4096]);
-
-        let block_size = 1024 << self.sb.log_block_size;
-        let sector_size = self.sector_size();
-        let ratio = block_size / sector_size;
-
-        assert!(block_size % sector_size == 0);
-
-        let sector_idx = bidx as u64 * ratio;
-
-        eprintln!(
-            "read_fs_block {} which is sectors {}..{}",
-            bidx,
-            sector_idx,
-            sector_idx + ratio
-        );
-        for i in 0..ratio {
-            let sidx = (bidx as u64 * ratio) + i;
-            let slice = &mut *arr;
-            self.read_sector(
-                sidx,
-                &mut slice[(i * sector_size) as usize..((i + 1) * sector_size) as usize],
-            )
-            .unwrap();
-        }
-
-        arr
+        self.read_struct(off).unwrap()
     }
 
     pub fn read_block_group(&mut self, idx: u32) -> Ext2GroupDesc {
@@ -209,27 +193,7 @@ impl Ext2DevHandle {
 
         let byte_addr: u64 = bg_offset + desc_off;
 
-        println!("Group descr: Byte_addr: 0x{:x}", byte_addr);
-
-        let sector_idx: u64 = byte_addr / self.sector_size();
-        let sector_off: usize = (byte_addr - sector_idx * self.sector_size()) as usize;
-
-        let mut buf = [0u8; 512];
-        self.read_sector(sector_idx, &mut buf);
-        let buf = &buf[sector_off..sector_off + 32];
-
-        let mut descr_buf = [0u8; 32];
-        let descr = unsafe {
-            core::ptr::copy_nonoverlapping(
-                buf.as_ptr(),
-                descr_buf.as_mut_ptr(),
-                core::mem::size_of::<Ext2GroupDesc>(),
-            );
-
-            core::mem::transmute(descr_buf)
-        };
-
-        descr
+        self.read_struct(byte_addr).unwrap()
     }
 }
 

@@ -13,8 +13,7 @@ fn main() {
 
     println!("sizeof inode is: {}", core::mem::size_of::<fs::Ext2Inode>());
 
-    let root = handle.read_inode(2);
-    println!("Inode 11: \n {:x?}", root);
+    println!("Inode root: \n {:x?}", handle.read_inode(2));
 
     // Iterator<Dirs>
     //handle.read_dir("/");
