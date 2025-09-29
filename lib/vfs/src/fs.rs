@@ -122,36 +122,38 @@ impl Ext2DevHandle {
     }
 
     fn read_struct<C: Copy>(&mut self, offset: u64) -> io::Result<C> {
-        let mut t = std::mem::MaybeUninit::<C>::uninit();
-        let s_sz = std::mem::size_of::<C>() as usize;
+        let mut obj = core::mem::MaybeUninit::<C>::uninit();
+        let mut sbuf = core::mem::MaybeUninit::<[u8; 512]>::uninit();
 
-        let sector_start = offset / self.sector_size();
-        let off_start = (offset - (sector_start * self.sector_size())) as usize;
-
-        assert!(std::mem::size_of::<C>() <= self.sector_size() as usize);
-        let mut sector_buf = std::mem::MaybeUninit::<[u8; 512]>::uninit();
-
-        match self.read_sector(sector_start, unsafe {
-            std::slice::from_raw_parts_mut(sector_buf.as_mut_ptr() as *mut u8, 512)
-        }) {
-            Ok(n) if n < s_sz => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "partial sector read",
-                ))
-            }
-            io::Result::Err(e) => return Err(e),
-            _ => {}
+        let (mut dst, mut src) = unsafe {
+            (
+                core::slice::from_raw_parts_mut(
+                    obj.as_mut_ptr() as *mut u8,
+                    core::mem::size_of::<C>(),
+                ),
+                core::slice::from_raw_parts_mut(sbuf.as_mut_ptr() as *mut u8, 512),
+            )
         };
 
-        let sector_buf = unsafe { sector_buf.assume_init() };
-        let t = unsafe {
-            (t.as_mut_ptr() as *mut u8)
-                .copy_from_nonoverlapping(sector_buf.as_ptr().add(off_start), s_sz);
-            t.assume_init()
-        };
+        let start_sector = offset / self.sector_size();
+        let mut t_start = (offset - (self.sector_size() * start_sector)) as usize;
 
-        Ok(t)
+        let mut iter = 0;
+        while !dst.is_empty() {
+            self.read_sector(start_sector + iter, &mut src).unwrap();
+
+            iter += 1;
+            let to_read = usize::min(dst.len(), src[t_start..].len());
+
+            let tslice = &mut src[t_start..t_start + to_read];
+            t_start = 0;
+
+            let (to_fill, rdst) = dst.split_at_mut(tslice.len());
+            to_fill.copy_from_slice(&tslice);
+            dst = rdst;
+        }
+
+        unsafe { Ok(obj.assume_init()) }
     }
 
     pub fn read_superblock(&mut self) -> &Ext2SuperBlock {
