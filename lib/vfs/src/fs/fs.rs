@@ -27,19 +27,12 @@ impl Ext2DevHandle {
         1024 << self.sb.log_block_size
     }
 
-    pub fn read_struct<C: Copy>(&mut self, offset: u64) -> io::Result<C> {
-        let mut obj = core::mem::MaybeUninit::<C>::uninit();
+    pub fn read_to_buf(&mut self, offset: u64, buf: &mut [u8]) -> io::Result<u64> {
+        let mut dst = buf;
+        let amt2read = dst.len();
         let mut sbuf = core::mem::MaybeUninit::<[u8; 512]>::uninit();
 
-        let (mut dst, mut src) = unsafe {
-            (
-                core::slice::from_raw_parts_mut(
-                    obj.as_mut_ptr() as *mut u8,
-                    core::mem::size_of::<C>(),
-                ),
-                core::slice::from_raw_parts_mut(sbuf.as_mut_ptr() as *mut u8, 512),
-            )
-        };
+        let mut src = unsafe { core::slice::from_raw_parts_mut(sbuf.as_mut_ptr() as *mut u8, 512) };
 
         let start_sector = offset / self.sector_size();
         let mut t_start = (offset - (self.sector_size() * start_sector)) as usize;
@@ -59,6 +52,18 @@ impl Ext2DevHandle {
             dst = rdst;
         }
 
+        Ok(amt2read as u64)
+    }
+
+    pub fn read_struct<C: Copy>(&mut self, offset: u64) -> io::Result<C> {
+        let mut obj = core::mem::MaybeUninit::<C>::uninit();
+
+        let dst = unsafe {
+            core::slice::from_raw_parts_mut(obj.as_mut_ptr() as *mut u8, core::mem::size_of::<C>())
+        };
+
+        let amt = self.read_to_buf(offset, dst)?;
+        assert_eq!(amt, core::mem::size_of::<C>() as u64);
         unsafe { Ok(obj.assume_init()) }
     }
 

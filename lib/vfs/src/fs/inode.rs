@@ -9,19 +9,22 @@ pub struct Ext2InodeHandle {
     off: u64,
 }
 
-fn read_inode_data(fs: &mut Ext2DevHandle, ino: u64, offset: u64, buf: &mut [u8]) -> Result<usize, ()> {
-
+fn read_inode_data(
+    fs: &mut Ext2DevHandle,
+    ino: u64,
+    offset: u64,
+    buf: &mut [u8],
+) -> Result<usize, ()> {
+    Err(())
 }
 
-fn get_inode_block(fs: &mut Ext2DirEntry, inode: Ext2InodeHandle, )
-fn read_inode_block(); 
-
+//fn get_inode_block(fs: &mut Ext2DirEntry, inode: Ext2InodeHandle, )
+//fn read_inode_block();
 
 impl Ext2InodeHandle {
     pub fn create(ino: u64) -> Ext2InodeHandle {
         Ext2InodeHandle { ino, off: 0 }
     }
-
 
     pub fn read(&mut self, fs: &mut Ext2DevHandle, buf: &mut [u8]) -> Result<usize, ()> {
         let bg_num = self.ino / fs.sb.inodes_per_group as u64;
@@ -65,6 +68,32 @@ impl Ext2InodeHandle {
 // This should use the inode cache than read
 pub fn get_inode(fs: &mut Ext2DevHandle, ino: u64) -> Result<Ext2Inode, ()> {
     Ok(read_inode(fs, ino))
+}
+
+#[derive(PartialEq, Eq)]
+pub enum InodeType {
+    Unknown = 0,
+    Fifo = 1,
+    CharDev = 2,
+    Dir = 4,
+    BlockDev = 6,
+    RegularFile = 8,
+    SymLink = 0xa,
+    UnixSocket = 0xc,
+}
+
+pub fn get_inode_type(inode: &Ext2Inode) -> InodeType {
+    use InodeType::*;
+    match (inode.mode >> 12) & 0xf {
+        1 => Fifo,
+        2 => CharDev,
+        4 => Dir,
+        6 => BlockDev,
+        8 => RegularFile,
+        0xa => SymLink,
+        0xc => UnixSocket,
+        _ => Unknown,
+    }
 }
 
 pub fn read_inode(fs: &mut Ext2DevHandle, ino: u64) -> Ext2Inode {

@@ -89,7 +89,7 @@ pub struct Ext2GroupDesc {
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Ext2DirEntry {
-    pub inode: u32,
+    pub ino: u32,
     pub rec_len: u16,
     pub name_len: u8,
     pub file_type: u8,

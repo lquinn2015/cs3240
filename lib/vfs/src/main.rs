@@ -23,6 +23,14 @@ fn main() {
 
     println!("{:?}", buf);
 
+    let mut dir = open_dir(&mut handle, 2).unwrap();
+    println!("Reading Dir: ");
+    while let Ok(Some(dline)) = read_dir(&mut handle, &mut dir) {
+        if let Ok(name) = core::str::from_utf8(&dline.fname) {
+            println!("io: {}, ty: {}, {name}", dline.ino, dline.file_type);
+        }
+    }
+
     // Iterator<Dirs>
     //handle.read_dir("/");
 

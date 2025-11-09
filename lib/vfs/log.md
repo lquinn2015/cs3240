@@ -61,8 +61,61 @@ byte 0: b7 b6 b5 b4 b3 b2 b1 b0  -------- b0 points to block 1
 byte 1:
 byte 2: 
 
-#
+# Redesign
+Defs: Basic defs for inode, sb, block group, dir(-name)
+Filesystem - driver to read/write buffers
+    Data 
+        Cache: 
+            Superblock  - 1Kbytes
+            BlockGroups - #num blocks * 256b
+            [Inode; 32] - slots  32 * 256b  # use HashMap swap to LRU  
+            
 
+Inode
+    R/O stage
+        locate_inode
+        read_inode(fs, ino) -> Result<Inode,()>
+            Read Inode from FS block device
+        get_inode(fs, ino) -> Result<Inode, ()> 
+            gets an inode from the cache 
+            if not in cache read from block dev 
+        locate_inode(fs, ino) -> Result<(Offset'byte, sz)>
+            locates where this inode is
+    R/W stage
+        write_inode
+        update_inode
+Group 
+    read_group() 
+    read_group_desc() -> Result<GroupDesrp ()>
+    get_ino_group -> Result<(u64,u64),()>
+        (group number, ino in group)
+    get_block_group() -> Result<(u64,u64), ()>
+        (group number, block in group)
+
+
+
+# Reading a Directory
+
+This should be the first thing you implement! Why? This will require you to
+build several functions that are used to inplement default file behavior but
+also it allows you an entry point into the file system. You know the numerical
+root / ino. 
+
+Ideal you following this path you can slowly implement the following calls 
+
+open_dir(fs, ino) -> Result<dir handle>  this is your special file pointer it also
+checks that the ino is a directory type. 
+
+read_dir(fs, dir) -> Result<Option(Dentry, Line)> 
+This function will return an entry and a line which is bytes for the file name
+it also updates the offset. Subsequent calls advance the directory pointer to
+the next dir. This is easy to turn into an iterator. To do this you need a few
+
+read_dentry(fs, dir) -> Result<(dentry, name, next_offset)> - this is a good
+wrapper and allows you to simplify the read_dir impl to a loop until there is no
+more valid dentry or 
+
+read_
 
 
 
@@ -70,4 +123,4 @@ byte 2:
 
 # sources i liked
 [1] https://www.science.smith.edu/~nhowe/262/oldlabs/ext2.html
-
+[2] https://github.com/honzasp/libext2  - good impl
