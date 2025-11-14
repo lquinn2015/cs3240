@@ -2,6 +2,7 @@ use super::defs::*;
 use super::fs::*;
 use super::group::*;
 
+use crate::fs::error::FsError;
 use crate::traits::block_device::BlockDevice;
 
 pub struct Ext2InodeHandle {
@@ -26,9 +27,7 @@ impl Ext2InodeHandle {
         Ext2InodeHandle { ino, off: 0 }
     }
 
-    pub fn read(&mut self, fs: &mut Ext2DevHandle, buf: &mut [u8]) -> Result<usize, ()> {
-        let bg_num = self.ino / fs.sb.inodes_per_group as u64;
-        let bg = get_block_group(fs, bg_num)?;
+    pub fn read(&mut self, fs: &mut Ext2DevHandle, buf: &mut [u8]) -> Result<usize, FsError> {
         let inode = get_inode(fs, self.ino)?;
 
         let mut sbuf = [0; 512];
@@ -40,7 +39,6 @@ impl Ext2InodeHandle {
         let offset = b2r * fs.block_size();
 
         let start_sector = (offset) / fs.sector_size();
-        let start_off = (offset - (fs.sector_size() * start_sector)) as usize;
 
         let mut t_start = 0;
         let mut iter = 0;
@@ -66,8 +64,8 @@ impl Ext2InodeHandle {
 }
 
 // This should use the inode cache than read
-pub fn get_inode(fs: &mut Ext2DevHandle, ino: u64) -> Result<Ext2Inode, ()> {
-    Ok(read_inode(fs, ino))
+pub fn get_inode(fs: &mut Ext2DevHandle, ino: u64) -> Result<Ext2Inode, FsError> {
+    Ok(read_inode(fs, ino)?)
 }
 
 #[derive(PartialEq, Eq)]
@@ -96,13 +94,13 @@ pub fn get_inode_type(inode: &Ext2Inode) -> InodeType {
     }
 }
 
-pub fn read_inode(fs: &mut Ext2DevHandle, ino: u64) -> Ext2Inode {
+pub fn read_inode(fs: &mut Ext2DevHandle, ino: u64) -> Result<Ext2Inode, FsError> {
     let block_size = fs.block_size();
 
     let gno = ino / fs.sb.inodes_per_group as u64;
     let idx = ino % fs.sb.inodes_per_group as u64;
 
-    let my_bg_desc = read_block_group(fs, gno);
+    let my_bg_desc = read_block_group(fs, gno)?;
     let inode_size = core::mem::size_of::<Ext2Inode>() as u64;
 
     // FS block idx
@@ -112,5 +110,5 @@ pub fn read_inode(fs: &mut Ext2DevHandle, ino: u64) -> Ext2Inode {
 
     println!("inode byte addr: {off:0x}, inode_table_idx: {}, inode_table_addr: {inode_table_addr:0x}, inode_bg_off: {idx}", my_bg_desc.inode_table_idx);
 
-    fs.read_struct(off).unwrap()
+    fs.read_struct(off).map_err(|_e| FsError::IOError)
 }

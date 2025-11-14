@@ -1,12 +1,14 @@
+use crate::fs::error::FsError;
+
 use super::defs::*;
 use super::fs::*;
 
 // Stub for cached block group
-pub fn get_block_group(fs: &mut Ext2DevHandle, gno: u64) -> Result<Ext2GroupDesc, ()> {
-    Ok(read_block_group(fs, gno))
+pub fn get_block_group(fs: &mut Ext2DevHandle, gno: u64) -> Result<Ext2GroupDesc, FsError> {
+    Ok(read_block_group(fs, gno)?)
 }
 
-pub fn read_block_group(fs: &mut Ext2DevHandle, gno: u64) -> Ext2GroupDesc {
+pub fn read_block_group(fs: &mut Ext2DevHandle, gno: u64) -> Result<Ext2GroupDesc, FsError> {
     let block_size = fs.block_size() as usize;
     let bgs = fs.sb.block_count / fs.sb.blocks_per_group;
     assert!(gno <= bgs as u64);
@@ -21,7 +23,12 @@ pub fn read_block_group(fs: &mut Ext2DevHandle, gno: u64) -> Ext2GroupDesc {
 
     let byte_addr: u64 = bg_offset + desc_off;
 
-    fs.read_struct(byte_addr).unwrap()
+    fs.read_struct(byte_addr).map_err(|_e| FsError::IOError)
+}
+
+pub fn print_inode_alloc_tbl(fs: &mut Ext2DevHandle, gno: u64) {
+    let bg = get_block_group(fs, gno).unwrap();
+    println!("{bg:?}");
 }
 
 fn get_ino_group_off(fs: &Ext2DevHandle, ino: u64) -> (u64, u64) {

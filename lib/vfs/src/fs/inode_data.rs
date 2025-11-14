@@ -5,14 +5,14 @@ pub fn get_inode_addr_from_offset(
     fs: &mut Ext2DevHandle,
     inode: &Ext2Inode,
     off: u64,
-) -> Result<u64, ()> {
+) -> Result<u64, FsError> {
     let block_sz = fs.block_size() as u64;
     let inode_block = off / block_sz;
     let block_off = off % block_sz;
 
     let real_block = match get_inode_block(fs, inode, inode_block)? {
         Some(blk) => blk,
-        _ => return Err(()),
+        _ => return Err(FsError::BlockOutOfBounds),
     };
     let byte_addr = real_block * block_sz + block_off;
 
@@ -52,9 +52,9 @@ fn inode_block_to_pos(fs: &mut Ext2DevHandle, inode_block: u64) -> BlockPos {
     }
 }
 
-fn read_indirect(fs: &mut Ext2DevHandle, indirect: u64, index: u64) -> Result<u64, ()> {
+fn read_indirect(fs: &mut Ext2DevHandle, indirect: u64, index: u64) -> Result<u64, FsError> {
     let byte_addr = indirect * fs.block_size() + index * 4;
-    let iblk: u32 = fs.read_struct(byte_addr).map_err(|_e| ())?;
+    let iblk: u32 = fs.read_struct(byte_addr).map_err(|_e| FsError::IOError)?;
 
     Ok(iblk as u64)
 }
@@ -66,7 +66,7 @@ fn get_inode_block(
     fs: &mut Ext2DevHandle,
     inode: &Ext2Inode,
     inode_block: u64,
-) -> Result<Option<u64>, ()> {
+) -> Result<Option<u64>, FsError> {
     use BlockPos::*;
 
     match inode_block_to_pos(fs, inode_block) {
@@ -95,6 +95,6 @@ fn get_inode_block(
             let block0 = read_indirect(fs, block1, l0)?; 
             if block0 == 0 { return Ok(None); } else { return Ok(Some(block0)); }
         }
-        BlockPos::OutOfRange => Err(()),
+        BlockPos::OutOfRange => Err(FsError::BlockOutOfBounds),
     }
 }
