@@ -4,7 +4,7 @@ mod traits;
 use fs::*;
 
 fn main() {
-    let mut handle = Ext2DevHandle::mount("ext2_image.img".to_owned()).unwrap();
+    let mut handle = Ext2DevHandle::mount("unix.img".to_owned()).unwrap();
     println!("{:?}", handle.get_superblock());
 
     let gd = read_block_group(&mut handle, 0);
@@ -32,8 +32,15 @@ fn main() {
 
     print_inode_alloc_tbl(&mut handle, 0);
 
-    let tmp_ino = find_file(&mut handle, &"/tmp2/txtfile.txt".as_bytes(), 2).unwrap();
-    println!("{:?}", tmp_ino);
+    let tmp_ino = find_file(&mut handle, &"/tmp2/blamp/mor.txt".as_bytes(), 2)
+        .unwrap()
+        .unwrap();
+    println!("inode for more.txt: {:?}", get_inode(&mut handle, tmp_ino));
+
+    //for i in 0..20 {
+    //    let tmp = get_inode(&mut handle, tmp_ino + i);
+    //    println!("ino: {}: {tmp:?}", tmp_ino + i);
+    //}
 
     // Iterator<Dirs>
     //handle.read_dir("/");

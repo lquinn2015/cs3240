@@ -95,20 +95,14 @@ pub fn get_inode_type(inode: &Ext2Inode) -> InodeType {
 }
 
 pub fn read_inode(fs: &mut Ext2DevHandle, ino: u64) -> Result<Ext2Inode, FsError> {
-    let block_size = fs.block_size();
-
-    let gno = ino / fs.sb.inodes_per_group as u64;
-    let idx = ino % fs.sb.inodes_per_group as u64;
-
-    let my_bg_desc = read_block_group(fs, gno)?;
-    let inode_size = core::mem::size_of::<Ext2Inode>() as u64;
-
-    // FS block idx
-    let inode_table_addr = (my_bg_desc.inode_table_idx as u64 * block_size) as u64;
-    let inode_off = (idx * inode_size) as u64;
-    let off = inode_table_addr + inode_off;
-
-    println!("inode byte addr: {off:0x}, inode_table_idx: {}, inode_table_addr: {inode_table_addr:0x}, inode_bg_off: {idx}", my_bg_desc.inode_table_idx);
-
+    let (off, _inode_sz) = locate_inode(fs, ino)?;
     fs.read_struct(off).map_err(|_e| FsError::IOError)
+}
+
+fn locate_inode(fs: &mut Ext2DevHandle, ino: u64) -> Result<(u64, u64), FsError> {
+    let (gno, idx) = get_ino_group_off(fs, ino);
+    let inode_sz = fs.sb.inode_size as u64;
+    let inode_tbl = get_block_group(fs, gno)?.inode_table_idx as u64;
+    let offset = fs.block_size() * inode_tbl + idx * inode_sz;
+    Ok((offset, inode_sz))
 }

@@ -31,12 +31,12 @@ pub fn print_inode_alloc_tbl(fs: &mut Ext2DevHandle, gno: u64) {
     println!("{bg:?}");
 }
 
-fn get_ino_group_off(fs: &Ext2DevHandle, ino: u64) -> (u64, u64) {
+pub fn get_ino_group_off(fs: &Ext2DevHandle, ino: u64) -> (u64, u64) {
     let group_sz = fs.sb.inodes_per_group as u64;
     ((ino - 1) / group_sz, (ino - 1) % group_sz)
 }
 
-fn get_blocks_group_off(fs: &Ext2DevHandle, bno: u64) -> (u64, u64) {
+pub fn get_blocks_group_off(fs: &Ext2DevHandle, bno: u64) -> (u64, u64) {
     let group_sz = fs.sb.blocks_per_group as u64;
     let rel_block = bno - fs.sb.first_data_block as u64;
     (rel_block / group_sz, rel_block % group_sz)

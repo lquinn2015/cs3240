@@ -23,6 +23,11 @@ pub fn find_file(fs: &mut Ext2DevHandle, name: &[u8], cwd: u64) -> Result<Option
         'find_part: loop {
             match read_dir(fs, &mut dir)? {
                 Some(dentry) => {
+                    println!(
+                        "traverse ino: {}, {:?}",
+                        dentry.ino,
+                        get_inode(fs, dentry.ino + 10)
+                    );
                     if &dentry.fname[0..] == sub {
                         cwd = dentry.ino;
                         println!("Found inode: {cwd}, itype: {}", dentry.file_type);
@@ -38,7 +43,6 @@ pub fn find_file(fs: &mut Ext2DevHandle, name: &[u8], cwd: u64) -> Result<Option
 }
 
 pub fn open_dir(fs: &mut Ext2DevHandle, ino: u64) -> Result<Ext2DirHandle, FsError> {
-    let ino = if ino != 2 { 10 + ino } else { 2 };
     let inode = get_inode(fs, ino)?;
 
     println!("Inode: {inode:?}");
@@ -77,7 +81,7 @@ pub fn read_dentry(
     fs.read_to_buf(byte_addr, &mut data[0..])
         .map_err(|_| FsError::IOError)?;
 
-    Ok((dentry, data, dentry.rec_len as u64))
+    Ok((dentry, data, off + dentry.rec_len as u64))
 }
 
 pub fn read_dir(
@@ -94,9 +98,9 @@ pub fn read_dir(
         let (entry, name, next_offset) = read_dentry(fs, &inode, dir.off)?;
 
         let fname = String::from_utf8(name.clone()).unwrap();
-        println!("Looking for {fname} in inode: {entry:?}");
+        println!("dentry for {fname} in inode: {entry:?}");
 
-        dir.off += next_offset;
+        dir.off = next_offset;
         if entry.ino != 0 {
             return Ok(Some(DirLine {
                 ino: entry.ino as u64,
